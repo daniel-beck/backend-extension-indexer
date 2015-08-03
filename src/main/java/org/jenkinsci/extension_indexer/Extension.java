@@ -29,11 +29,6 @@ public final class Extension {
     public final MavenArtifact artifact;
 
     /**
-     * The compiler session where this information was determined.
-     */
-    public final JavacTask javac;
-
-    /**
      * Type that implements the extension point.
      */
     public final TypeElement implementation;
@@ -44,23 +39,22 @@ public final class Extension {
      */
     public final TypeElement extensionPoint;
 
+    private final String javadoc;
+
+    private final long pos;
+
     /**
      * {@link TreePath} that leads to {@link #implementation}
      */
     public final TreePath implPath;
 
-    /**
-     * {@link Trees} object for {@link #javac}
-     */
-    public final Trees trees;
-
-    Extension(MavenArtifact artifact, JavacTask javac, Trees trees, TypeElement implementation, TreePath implPath, TypeElement extensionPoint) {
+    Extension(MavenArtifact artifact, long pos, String javadoc, TypeElement implementation, TreePath implPath, TypeElement extensionPoint) {
         this.artifact = artifact;
-        this.javac = javac;
         this.implementation = implementation;
         this.implPath = implPath;
         this.extensionPoint = extensionPoint;
-        this.trees = trees;
+        this.pos = pos;
+        this.javadoc = javadoc;
     }
 
     /**
@@ -98,12 +92,11 @@ public final class Extension {
      * Gets the line number in the source file where this implementation was defined.
      */
     public long getLineNumber() {
-        return getCompilationUnit().getLineMap().getLineNumber(
-                trees.getSourcePositions().getStartPosition(getCompilationUnit(), getClassTree()));
+        return getCompilationUnit().getLineMap().getLineNumber(pos);
     }
 
     public String getJavadoc() {
-        return javac.getElements().getDocComment(implementation);
+        return javadoc;
     }
 
     /**

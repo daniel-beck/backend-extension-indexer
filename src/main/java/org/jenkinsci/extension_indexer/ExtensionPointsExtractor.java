@@ -82,31 +82,7 @@ public class ExtensionPointsExtractor {
             final List<Extension> r = new ArrayList<Extension>();
 
             // discover all compiled types
-            TreePathScanner<?,?> classScanner = new TreePathScanner<Void,Void>() {
-                final TypeElement extensionPoint = elements.getTypeElement("hudson.ExtensionPoint");
-
-                public Void visitClass(ClassTree ct, Void _) {
-                    TreePath path = getCurrentPath();
-                    TypeElement e = (TypeElement) trees.getElement(path);
-                    if(e!=null)
-                        checkIfExtension(path,e,e);
-
-                    return super.visitClass(ct, _);
-                }
-
-                private void checkIfExtension(TreePath pathToRoot, TypeElement root, TypeElement e) {
-                    if (e==null)    return; // if the compilation fails, this can happen
-
-                    for (TypeMirror i : e.getInterfaces()) {
-                        if (types.asElement(i).equals(extensionPoint))
-                            r.add(new Extension(artifact, javac, trees, root, pathToRoot, e));
-                        checkIfExtension(pathToRoot,root,(TypeElement)types.asElement(i));
-                    }
-                    TypeMirror s = e.getSuperclass();
-                    if (!(s instanceof NoType))
-                        checkIfExtension(pathToRoot,root,(TypeElement)types.asElement(s));
-                }
-            };
+            TreePathScanner<?,?> classScanner = new MyTreePathScanner(artifact, elements, types, trees, javac, r);
 
             for( CompilationUnitTree u : parsed )
                 classScanner.scan(u,null);
@@ -131,5 +107,48 @@ public class ExtensionPointsExtractor {
                 System.out.println(diagnostic);
             }
         };
+    }
+
+    private static final class MyTreePathScanner extends TreePathScanner<Void,Void> {
+        private final TypeElement extensionPoint;
+
+        private final JavacTask javac;
+        private final Elements elements;
+        private final MavenArtifact artifact;
+        private final Types types;
+        private final Trees trees;
+        private final List<Extension> r;
+
+        public MyTreePathScanner(MavenArtifact artifact, Elements elements, Types types, Trees trees, JavacTask javac, List<Extension> r) {
+            this.javac = javac;
+            this.trees = trees;
+            this.types = types;
+            this.r = r;
+            this.artifact = artifact;
+            this.elements = elements;
+            this.extensionPoint = elements.getTypeElement("hudson.ExtensionPoint");
+        }
+
+        public Void visitClass(ClassTree ct, Void _) {
+            TreePath path = getCurrentPath();
+            TypeElement e = (TypeElement) trees.getElement(path);
+            if(e!=null)
+                checkIfExtension(path,e,e);
+
+            return super.visitClass(ct, _);
+        }
+
+        private void checkIfExtension(TreePath pathToRoot, TypeElement root, TypeElement e) {
+            if (e==null)    return; // if the compilation fails, this can happen
+
+            for (TypeMirror i : e.getInterfaces()) {
+                if (types.asElement(i).equals(extensionPoint))
+                    r.add(new Extension(artifact, trees.getSourcePositions().getStartPosition(pathToRoot.getCompilationUnit(), pathToRoot.getLeaf()), javac.getElements().getDocComment(root), root, pathToRoot, e));
+                checkIfExtension(pathToRoot,root,(TypeElement)types.asElement(i));
+            }
+            TypeMirror s = e.getSuperclass();
+            if (!(s instanceof NoType))
+                checkIfExtension(pathToRoot,root,(TypeElement)types.asElement(s));
+        }
     }
 }
