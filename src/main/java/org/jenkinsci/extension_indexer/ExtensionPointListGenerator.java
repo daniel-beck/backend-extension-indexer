@@ -214,39 +214,25 @@ public class ExtensionPointListGenerator {
      */
     private void processPlugins(MavenRepository r) throws Exception {
         ExecutorService svc = Executors.newFixedThreadPool(4);
-        try {
-            Set<Future> futures = new HashSet<Future>();
-            for (final PluginHistory p : new ArrayList<PluginHistory>(r.listHudsonPlugins())/*.subList(0,200)*/) {
-                if (!args.isEmpty()) {
-                    if (!args.contains(p.artifactId))
-                        continue;   // skip
-                }
-                futures.add(svc.submit(new Runnable() {
-                    public void run() {
-                        try {
-                            System.out.println(p.artifactId);
-                            synchronized (modules) {
-                                Plugin pi = new Plugin(p,cpl);
-                                modules.put(p.latest(), new Module(p.latest(),pi.getWiki(),pi.getTitle()) {
-                                    @Override
-                                    String getWikiLink() {
-                                        return '['+displayName+']';
-                                    }
-                                });
-                            }
-                            discover(p.latest());
-                        } catch (Exception e) {
-                            System.err.println("Failed to process "+p.artifactId);
-                            e.printStackTrace();
-                        }
+        for (final PluginHistory p : new ArrayList<PluginHistory>(r.listHudsonPlugins())/*.subList(0,200)*/) {
+            if (!args.isEmpty()) {
+                if (!args.contains(p.artifactId))
+                    continue;   // skip
+            }
+            try {
+                System.out.println(p.artifactId);
+                Plugin pi = new Plugin(p, cpl);
+                modules.put(p.latest(), new Module(p.latest(), pi.getWiki(), pi.getTitle()) {
+                    @Override
+                    String getWikiLink() {
+                        return '[' + displayName + ']';
                     }
-                }));
+                });
+                discover(p.latest());
+            } catch (Exception e) {
+                System.err.println("Failed to process " + p.artifactId);
+                e.printStackTrace();
             }
-            for (Future f : futures) {
-                f.get();
-            }
-        } finally {
-            svc.shutdown();
         }
     }
 
